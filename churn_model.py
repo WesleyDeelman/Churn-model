@@ -80,6 +80,32 @@ class DataLoader:
         
         return data[['customer_id','date','target','subsequent_purchases']].drop_duplicates()
     
+    def calculate_rfm(self, snapshot_date: str, window: pd.Timedelta,df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate RFM metrics for customer segmentation.
+
+        Parameters:
+            snapshot_date (str): date to calculate recency from (YYYY-MM-DD).
+        
+        Returns:
+            pd.DataFrame: RFM metrics per CustomerID.
+        """
+        data = df.copy()
+        snapshot = pd.to_datetime(snapshot_date)
+        data['date'] = pd.to_datetime(data.date)
+        data  = data[(data.date<snapshot) & (data.date>(snapshot-window))]
+        data['recency'] = (snapshot - pd.to_datetime(data['date'])).dt.days
+        rfm = data.groupby('customer_id').agg({
+            'recency': 'min',
+            'transaction_id': 'count',               # frequency: number of transactions
+            'amount': 'sum'             # monetary: total spend
+        }).reset_index()
+
+        rfm.rename(columns={'transaction_id': 'frequency', 'amount': 'monetary'}, inplace=True)
+        rfm['date'] = snapshot_date
+
+        return rfm[['customer_id', 'date', 'recency', 'frequency', 'monetary']]
+    
     def generate_churn_features(self,df, cutoff_date=None, recent_days=[30, 60, 90]):
             """
             Generate churn features from transaction data.
@@ -270,13 +296,15 @@ CONFIG = {'snapshot_date':'2023/01/01'}
 loader = DataLoader(r'data\customer_transaction_data_reduced.csv','CustomerID','TransactionID','PurchaseDate','TotalAmount')
 data  = loader.fetch_data()
 target = loader.calculate_target(CONFIG['snapshot_date'],pd.Timedelta(weeks=56),0,data)
+rfm = loader.calculate_rfm(CONFIG['snapshot_date'],pd.Timedelta(days=99999),data)
 additional_features = loader.generate_churn_features(data,CONFIG['snapshot_date'])
-data= data.merge(additional_features,on=['customer_id'],how='left').drop(['transaction_id','date'],axis=1)
-data = data.merge(target.drop(['date','subsequent_purchases'],axis=1),on=['customer_id'],how='left')
+model_data= additional_features.merge(rfm,on=['customer_id'],how='left').drop(['date'],axis=1)
+model_data = model_data.merge(rfm,on=['customer_id'],how='left').drop(['date'],axis=1)
+model_data = model_data.merge(target.drop(['date','subsequent_purchases'],axis=1),on=['customer_id'],how='left')
 
-# Prepare data for modeling
+# Prepare data for modelling
 # Drop duplicates based on customer_id to ensure one row per customer for features
-model_data = data.drop_duplicates(subset=['customer_id']).copy()
+model_data = model_data.drop_duplicates(subset=['customer_id']).copy()
 X = model_data.drop(['target'],axis=1).set_index('customer_id')
 print(col for col in X.columns)
 y = model_data[['target']]
