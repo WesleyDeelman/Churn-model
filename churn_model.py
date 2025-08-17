@@ -271,7 +271,7 @@ loader = DataLoader(r'data\customer_transaction_data_reduced.csv','CustomerID','
 data  = loader.fetch_data()
 target = loader.calculate_target(CONFIG['snapshot_date'],pd.Timedelta(weeks=56),0,data)
 additional_features = loader.generate_churn_features(data,CONFIG['snapshot_date'])
-data= data.merge(additional_features,on=['customer_id'],how='left').drop('date',axis=1)
+data= data.merge(additional_features,on=['customer_id'],how='left').drop(['transaction_id','date'],axis=1)
 data = data.merge(target.drop(['date','subsequent_purchases'],axis=1),on=['customer_id'],how='left')
 
 # Prepare data for modeling
