@@ -271,12 +271,7 @@ class LGBMOptimizer:
                         callbacks=callbacks)
         
         y_pred_proba = model.predict(X_val)
-        best_auc = 0.5
         auc = roc_auc_score(y_val, y_pred_proba)
-        if best_auc < auc:
-            best_auc = auc
-        print(f'The best AUC up to now is: {best_auc:.2f}')
-
         return auc
 
     def optimize(self, n_trials=50):
@@ -306,7 +301,6 @@ model_data = model_data.merge(target.drop(['date','subsequent_purchases'],axis=1
 # Drop duplicates based on customer_id to ensure one row per customer for features
 model_data = model_data.drop_duplicates(subset=['customer_id']).copy()
 X = model_data.drop(['target'],axis=1).set_index('customer_id')
-print(col for col in X.columns)
 y = model_data[['target']]
 # Handle potential NaN values introduced by feature engineering (e.g., std_spend if only one transaction)
 X = X.fillna(X.mean())
