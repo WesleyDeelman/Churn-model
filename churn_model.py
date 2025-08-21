@@ -311,9 +311,7 @@ best_params = optimizer.optimize(n_trials=50)
 
 # Train the final model with the best parameters
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-X_train = lgb.Dataset(X_train, label=y_train)
-X_test = lgb.Dataset(X_test, label=y_test)
- 
+
 #Build the final model
 final_model=lgb.train(best_params, train_set=lgb.Dataset(X), num_boost_round=1000)
 final_model.save_model(r'data\final_model.txt')
